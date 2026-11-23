@@ -1,5 +1,7 @@
 # Paste Image Default Size
 
+**English** | [简体中文](https://github.com/UminoTou/siyuan-plugin-paste-image-ratio/blob/main/README.zh_CN.md)
+
 A SiYuan desktop plugin that applies a default width ratio (with an optional height cap) to images you paste into the editor, so you don't have to resize them by hand every time.
 
 ## Features
@@ -32,7 +34,5 @@ A SiYuan desktop plugin that applies a default width ratio (with an optional hei
 The plugin only calls local kernel APIs to read and update the paragraph containing the pasted image. Settings are stored in `data/storage/petal/siyuan-plugin-paste-image-ratio/settings.json`. No network access, no data uploaded.
 
 ## Targeted Poverty Alleviation Channel
-
-If this plugin saved you from dragging every pasted image to the right width, feel free to scan the codes and buy me a coffee.
 
 ![WeChat / Alipay donation QR codes](images/donate-qr.png)

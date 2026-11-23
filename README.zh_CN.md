@@ -1,5 +1,7 @@
 # 图片粘贴默认尺寸
 
+[English](https://github.com/UminoTou/siyuan-plugin-paste-image-ratio/blob/main/README.md) | **简体中文**
+
 思源笔记桌面端插件：粘贴图片后，自动按设定的**宽度占比**（可选高度上限）设置图片尺寸，省去每次粘贴后手动调整。
 
 ## 功能
@@ -34,7 +36,5 @@
 插件只调用本机内核接口读取图片所在段落的块 DOM 并写回尺寸，设置保存在 `data/storage/petal/siyuan-plugin-paste-image-ratio/settings.json`，不访问网络、不上传任何数据。
 
 ## 精准扶贫通道
-
-这个插件如果帮你省下了每次粘贴后手动拖宽度的功夫，欢迎扫码随意打赏。
 
 ![微信 / 支付宝收款码](images/donate-qr.png)
