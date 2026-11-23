@@ -1,0 +1,14 @@
+{
+  "openSetting": "Open paste image size settings",
+  "enableTitle": "Apply default size to pasted images",
+  "enableDesc": "Only applies to newly pasted images; images that already have a width or height style are left untouched",
+  "widthTitle": "Width ratio (%)",
+  "widthDesc": "Percentage of the editor width, 1-100. For example 20 fits about 5 images per row and 50 about 2, using the same inline gap convention as SiYuan",
+  "maxHeightTitle": "Height cap (px)",
+  "maxHeightDesc": "0 means no limit. When greater than 0, images scale down proportionally and are never stretched or upscaled",
+  "debugTitle": "Debug logging",
+  "debugDesc": "Log paste, scan, write and caret restore steps to the developer console for troubleshooting",
+  "invalidWidth": "Width ratio must be a number between 1 and 100",
+  "saved": "Settings saved",
+  "saveFailed": "Failed to save settings, please try again"
+}

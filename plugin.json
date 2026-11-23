@@ -1,0 +1,31 @@
+{
+  "name": "siyuan-plugin-paste-image-ratio",
+  "author": "UminoTou",
+  "url": "https://github.com/UminoTou/siyuan-plugin-paste-image-ratio",
+  "version": "1.0.0",
+  "minAppVersion": "3.8.7",
+  "frontends": [
+    "desktop"
+  ],
+  "displayName": {
+    "default": "Paste Image Default Size",
+    "zh-CN": "图片粘贴默认尺寸"
+  },
+  "description": {
+    "default": "Set a default width ratio (and optional height cap) for images you paste into the editor.",
+    "zh-CN": "粘贴图片时自动按设定的宽度占比（可选高度上限）设置图片尺寸。"
+  },
+  "readme": {
+    "default": "README.md",
+    "zh-CN": "README.zh_CN.md"
+  },
+  "icon": "icon.png",
+  "keywords": [
+    "image",
+    "paste",
+    "width",
+    "图片",
+    "粘贴",
+    "宽度"
+  ]
+}
