@@ -293,9 +293,11 @@ module.exports = class PasteImageWidth extends Plugin {
         if (!(target instanceof Element)) {
             return;
         }
-        const protyleElement = target.closest(".protyle");
-        const editor = protyleElement ? protyleElement.querySelector(".protyle-wysiwyg") : null;
-        if (!editor) {
+        // 3.8.x 下 protyle.querySelector(".protyle-wysiwyg") 可能拿到已被替换或为空的容器，
+        // 因此优先使用事件目标所在的编辑区，并保留所属 .protyle 供扫描与光标恢复
+        const editor = target.closest(".protyle-wysiwyg");
+        const protyleElement = target.closest(".protyle") || (editor ? editor.closest(".protyle") : null);
+        if (!editor && !protyleElement) {
             return;
         }
         const clipboardData = event.clipboardData;
@@ -303,7 +305,7 @@ module.exports = class PasteImageWidth extends Plugin {
             return;
         }
         this.log("paste detected");
-        this.startTask(editor);
+        this.startTask(protyleElement || editor);
     }
 
     clipboardHasImages(clipboardData) {
@@ -331,7 +333,7 @@ module.exports = class PasteImageWidth extends Plugin {
         return /\.(png|jpe?g|gif|webp|bmp|svg|avif|heic|tiff?)$/i.test(file.name || "");
     }
 
-    startTask(editor) {
+    startTask(scope) {
         if (this.disposed || !this.settings.enabled) {
             return;
         }
@@ -340,9 +342,10 @@ module.exports = class PasteImageWidth extends Plugin {
             return;
         }
         const now = Date.now();
+        const protyleElement = this.resolveProtyle(scope);
         // 连续粘贴由仍在运行的同一个任务覆盖，避免重复写入
         for (const task of this.tasks) {
-            if (task.editor === editor && now - task.startedAt < 1500) {
+            if (task.protyleElement === protyleElement && now - task.startedAt < 1500) {
                 return;
             }
         }
@@ -350,17 +353,19 @@ module.exports = class PasteImageWidth extends Plugin {
         const existingElements = new WeakSet();
         const existingSrcCounts = new Map();
         let imageCount = 0;
-        editor.querySelectorAll("img").forEach((img) => {
-            imageCount += 1;
-            existingElements.add(img);
-            const src = this.getImageSource(img);
-            if (src) {
-                existingSrcCounts.set(src, (existingSrcCounts.get(src) || 0) + 1);
-            }
+        this.collectEditors(protyleElement).forEach((editor) => {
+            editor.querySelectorAll("img").forEach((img) => {
+                imageCount += 1;
+                existingElements.add(img);
+                const src = this.getImageSource(img);
+                if (src) {
+                    existingSrcCounts.set(src, (existingSrcCounts.get(src) || 0) + 1);
+                }
+            });
         });
 
         const task = {
-            editor,
+            protyleElement,
             existingElements,
             existingSrcCounts,
             settled: new WeakSet(),
@@ -407,7 +412,11 @@ module.exports = class PasteImageWidth extends Plugin {
         let foundAny = false;
         const groups = new Map();
         try {
-            const images = Array.from(task.editor.querySelectorAll("img"));
+            // 每轮扫描重新取当前连在文档上的编辑区，避免沿用被思源替换掉的旧节点
+            const images = [];
+            this.collectEditors(task.protyleElement).forEach((editor) => {
+                editor.querySelectorAll("img").forEach((img) => images.push(img));
+            });
             const liveCounts = new Map();
             images.forEach((img) => {
                 const src = this.getImageSource(img);
@@ -622,8 +631,76 @@ module.exports = class PasteImageWidth extends Plugin {
         return src.trim();
     }
 
+    // 思源图片结构：span[data-type="img"] > span(空格) + span(尺寸) + span(空格)，
+    // 只有直接包裹 img 的那层 span 才是存放 width / max-height 的位置
+    getImageHolder(img) {
+        const wrapper = img.closest('[data-type~="img"]');
+        if (wrapper) {
+            let element = img.parentElement;
+            while (element && element !== wrapper) {
+                if (element.tagName === "SPAN") {
+                    return element;
+                }
+                element = element.parentElement;
+            }
+        }
+        return img.parentElement && img.parentElement.tagName === "SPAN" ? img.parentElement : null;
+    }
+
+    resolveProtyle(scope) {
+        if (!scope) {
+            return null;
+        }
+        if (scope.classList && scope.classList.contains("protyle-wysiwyg")) {
+            return scope.closest(".protyle");
+        }
+        if (scope.classList && scope.classList.contains("protyle")) {
+            return scope;
+        }
+        return scope.closest ? scope.closest(".protyle") : null;
+    }
+
+    // 重新解析当前仍连接在文档上的编辑区；只有所属 protyle 已失效时才退回到全文档
+    collectEditors(protyleElement) {
+        const editors = [];
+        const seen = new Set();
+        const push = (element) => {
+            if (element && element.isConnected && element.querySelectorAll && !seen.has(element)) {
+                seen.add(element);
+                editors.push(element);
+            }
+        };
+        if (protyleElement && protyleElement.isConnected) {
+            protyleElement.querySelectorAll(".protyle-wysiwyg").forEach(push);
+            if (protyleElement.classList && protyleElement.classList.contains("protyle-wysiwyg")) {
+                push(protyleElement);
+            }
+            if (editors.length > 0) {
+                return editors;
+            }
+        }
+        document.querySelectorAll(".protyle-wysiwyg").forEach(push);
+        return editors;
+    }
+
+    findBlockElement(blockId, protyleElement) {
+        const selector = `[data-node-id="${blockId}"]`;
+        const editors = this.collectEditors(protyleElement);
+        for (const editor of editors) {
+            const element = editor.querySelector(selector);
+            if (element) {
+                return element;
+            }
+        }
+        return null;
+    }
+
     hasSizeStyle(img) {
         const candidates = [img];
+        const holder = this.getImageHolder(img);
+        if (holder) {
+            candidates.push(holder);
+        }
         const wrapper = img.closest('[data-type~="img"]');
         if (wrapper) {
             candidates.push(wrapper);
@@ -638,12 +715,19 @@ module.exports = class PasteImageWidth extends Plugin {
     applySizeStyle(img) {
         const widthPercent = this.settings.widthPercent;
         const maxHeightPx = this.settings.maxHeightPx;
-        const style = img.style;
+        // 思源把图片尺寸写在 span[data-type="img"] 内层的包裹 span 上，写在 img 上不会被保留
+        const styleElement = this.getImageHolder(img) || img;
+        const style = styleElement.style;
         const widthValue = widthPercent >= 100 ? "100%" : `calc(${widthPercent}% - ${INLINE_GAP_PX}px)`;
-        style.removeProperty("height");
-        style.removeProperty("max-height");
-        style.removeProperty("max-width");
-        style.removeProperty("width");
+        [img, styleElement].forEach((element) => {
+            if (!element || !element.style) {
+                return;
+            }
+            element.style.removeProperty("height");
+            element.style.removeProperty("max-height");
+            element.style.removeProperty("max-width");
+            element.style.removeProperty("width");
+        });
         if (maxHeightPx > 0) {
             // 等比缩放：按原尺寸排版，同时受宽度占比和高度上限约束
             style.setProperty("width", "auto");
@@ -691,7 +775,7 @@ module.exports = class PasteImageWidth extends Plugin {
             if (this.disposed || task.cancelled) {
                 return;
             }
-            const blockElement = task.editor.querySelector(`[data-node-id="${blockId}"]`);
+            const blockElement = this.findBlockElement(blockId, task.protyleElement);
             const editable = blockElement ?
                 (blockElement.querySelector('[contenteditable="true"]') ||
                     blockElement.querySelector("[spellcheck]")) : null;
@@ -707,7 +791,9 @@ module.exports = class PasteImageWidth extends Plugin {
             const anchor = selection.anchorNode;
             const caretInBlock = Boolean(anchor && blockElement.contains(anchor));
             const active = document.activeElement;
-            const focusInEditor = Boolean(active && (active === task.editor || task.editor.contains(active)));
+            const editorElement = blockElement.closest(".protyle-wysiwyg");
+            const focusInEditor = Boolean(active && editorElement &&
+                (active === editorElement || editorElement.contains(active)));
             if (!focusInEditor && !caretInBlock) {
                 // 用户已离开编辑器，不抢焦点
                 return;

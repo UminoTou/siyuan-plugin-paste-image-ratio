@@ -2,7 +2,7 @@
   "name": "siyuan-plugin-paste-image-ratio",
   "author": "UminoTou",
   "url": "https://github.com/UminoTou/siyuan-plugin-paste-image-ratio",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minAppVersion": "3.8.7",
   "frontends": [
     "desktop"
